@@ -64,9 +64,10 @@
         "topthink/think-view": "^2.0"
     },
     "require-dev": {
+        "phpunit/phpunit": "^11.5",
         "symfony/var-dumper": "^7.3",
-        "topthink/think-trace":"^2.0",
-        "swoole/ide-helper": "^6.0"
+        "swoole/ide-helper": "^6.0",
+        "topthink/think-trace": "^2.0"
     },
     "autoload": {
         "psr-4": {
@@ -83,7 +84,14 @@
         "post-autoload-dump": [
             "@php think service:discover",
             "@php think vendor:publish"
-        ]
+        ],
+        "test": "@test:ci",
+        "test:ci": [
+            "@test:syntax",
+            "@test:unit"
+        ],
+        "test:syntax": "@php tools/php-syntax-check.php",
+        "test:unit": "@php vendor/bin/phpunit --configuration phpunit.xml"
     },
     "minimum-stability": "stable",
     "prefer-stable": true

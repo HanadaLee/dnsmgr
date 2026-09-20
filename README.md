@@ -31,6 +31,22 @@
 - SSL证书申请与自动部署功能，支持从Let's Encrypt等渠道申请SSL证书，并自动部署到各种面板、云服务商、服务器等；
 - 支持邮件、微信公众号、Telegram、钉钉、飞书、企业微信等多种通知渠道。
 
+## 测试
+
+项目使用 PHPUnit 运行单元测试，并通过独立脚本检查全库 PHP 语法。必跑测试不连接数据库，也不会调用第三方 DNS API。
+
+```bash
+composer install
+composer test
+```
+
+也可以分别运行语法检查和单元测试：
+
+```bash
+composer test:syntax
+composer test:unit
+```
+
 ## 部署方式
 
 ### 自部署

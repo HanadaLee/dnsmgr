@@ -301,14 +301,10 @@ function getMainDomain($host)
         $domains = Db::name('domain')->column('name');
         $domains_alias = Db::name('domain_alias')->column('name');
         $domains = array_merge($domains, $domains_alias);
-        usort($domains, fn($a, $b) => strlen($b) <=> strlen($a));
         config(['domains'=>$domains], 'temp');
     }
-    foreach ($domains as $domain) {
-        if ($host === $domain || str_ends_with($host, '.' . $domain)) {
-            return $domain;
-        }
-    }
+    $managedDomain = findManagedDomain($host, $domains);
+    if ($managedDomain !== null) return $managedDomain;
     $domain_root = file_get_contents(app()->getBasePath() . 'data' . DIRECTORY_SEPARATOR . 'domain_root.txt');
     $domain_root = explode("\n", $domain_root);
     $data = explode('.', $host);
@@ -319,6 +315,21 @@ function getMainDomain($host)
         $domain_name = $data[$co_ta - 3] . '.' . $domain_name;
     }
     return $domain_name;
+}
+
+/**
+ * 从已托管域名中选择与主机名匹配的最具体 Zone。
+ */
+function findManagedDomain(string $host, array $domains): ?string
+{
+    $domains = array_values(array_filter($domains, static fn($domain) => is_string($domain) && $domain !== ''));
+    usort($domains, static fn($a, $b) => strlen($b) <=> strlen($a));
+    foreach ($domains as $domain) {
+        if ($host === $domain || str_ends_with($host, '.' . $domain)) {
+            return $domain;
+        }
+    }
+    return null;
 }
 
 function check_proxy($url, $proxy_server, $proxy_port, $type, $proxy_user, $proxy_pwd)
