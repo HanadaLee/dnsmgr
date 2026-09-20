@@ -388,11 +388,12 @@ location / {
     {
         $config = $config ? json_decode($config, true) : [];
         $inputs = self::$cert_config[$type]['inputs'];
-        foreach ($inputs as &$input) {
-            if (isset($config[$input['name']])) {
-                $input['value'] = $config[$input['name']];
+        foreach ($inputs as $name => &$input) {
+            if (isset($config[$name])) {
+                $input['value'] = $config[$name];
             }
         }
+        unset($input);
         return $inputs;
     }
 
