@@ -15,4 +15,8 @@ if [ ! -f /app/www/public/index.php ] || [ ! -f /app/firstrun ]; then
     touch /app/firstrun
 fi
 
+if [ -n "${LISTEN_PORT}" ]; then
+    sed -i "s/listen 80 default_server;/listen ${LISTEN_PORT} default_server;/" /etc/nginx/nginx.conf
+fi
+
 exec "$@"

@@ -12,6 +12,14 @@
 
 彩虹聚合DNS管理系统 是一款基于ThinkPHP开发的网站程序，可实现在单一网站内管理多个平台的域名解析，目前已支持的域名解析平台有：阿里云、腾讯云、华为云、百度云、西部数码、火山引擎、DNSLA、CloudFlare、AWS Route 53、Namesilo、PowerDNS
 
+## Fork 版本新增内容
+
+本仓库的 `ext` 分支是配套 [dnsmgr-helper](https://github.com/HanadaLee/dnsmgr-helper) 与 [dnsmgr-frontend](https://github.com/HanadaLee/dnsmgr-frontend) 使用的增强版本。相较原版，当前主要增加：
+
+- AxisNow DNS 路由域名、路由规则、EIP（含共享订阅）和标签管理；
+- AxisNow 潮汐调度、故障备份调度、实时探测状态与地址池恢复；
+- AxisNow 线路、国家或地区及省级元数据的兼容处理。
+
 ## 功能特性
 
 - 多用户管理，可为每个用户可分配不同的域名解析权限；
@@ -82,7 +90,7 @@ location / {
 首先需要安装Docker，然后执行以下命令拉取镜像并启动（启动后监听8081端口）：
 
 ```
-docker run --name dnsmgr -dit -p 8081:80 -v /var/dnsmgr:/app/www netcccyun/dnsmgr
+docker run --name dnsmgr -dit -p 8081:80 -v /var/dnsmgr:/app/www hanadalee/dnsmgr
 ```
 
 访问并安装好后如果容灾切换未自动启动，重启容器即可：
@@ -91,10 +99,10 @@ docker run --name dnsmgr -dit -p 8081:80 -v /var/dnsmgr:/app/www netcccyun/dnsmg
 docker restart dnsmgr
 ```
 
-从国内镜像地址拉取：
+从内部镜像地址拉取：
 
 ```
-docker pull swr.cn-east-3.myhuaweicloud.com/netcccyun/dnsmgr:latest
+docker pull registry.hanada.info/hanada/dnsmgr:latest
 ```
 
 ### docker-compose 部署
@@ -109,7 +117,7 @@ services:
       - 8081:80
     volumes:
       - ./web:/app/www
-    image: netcccyun/dnsmgr
+    image: hanadalee/dnsmgr
     depends_on:
       - dnsmgr-mysql
     networks:

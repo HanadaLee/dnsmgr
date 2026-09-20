@@ -1,0 +1,49 @@
+name: Publish release
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+
+jobs:
+  release:
+    name: Publish tag and release
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Create release notes and publish release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          previous_tag="$(git tag --merged "$GITHUB_SHA" --sort=-version:refname |
+            grep -Fvx "$VERSION" | head -n 1 || true)"
+          if [[ -n "$previous_tag" ]]; then
+            {
+              echo "Changes since \`${previous_tag}\`:"
+              echo
+              git log --no-merges --pretty=format:'- %s (`%h`)' \
+                "${previous_tag}..${GITHUB_SHA}"
+              echo
+            } > release-notes.md
+          else
+            {
+              echo "Changes through \`${GITHUB_SHA}\`:"
+              echo
+              git log --no-merges --pretty=format:'- %s (`%h`)' "$GITHUB_SHA"
+              echo
+            } > release-notes.md
+          fi
+          gh release create "$VERSION" \
+            --target "$GITHUB_SHA" \
+            --title "$VERSION" \
+            --notes-file release-notes.md
