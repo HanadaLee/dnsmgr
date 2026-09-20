@@ -59,7 +59,7 @@ jobs:
     uses: ./.github/workflows/build.yml
     with:
       version: ${{ needs.prepare.outputs.version }}
-      publish_image: ${{ needs.prepare.outputs.release_needed == 'true' }}
+      publish_arch_images: ${{ needs.prepare.outputs.release_needed == 'true' }}
     secrets: inherit
 
   publish:
