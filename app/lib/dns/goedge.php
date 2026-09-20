@@ -5,7 +5,7 @@ namespace app\lib\dns;
 use app\lib\DnsInterface;
 use Exception;
 
-class GoEdge implements DnsInterface
+class goedge implements DnsInterface
 {
     private string $baseUrl;
     private string $accessKeyId;
