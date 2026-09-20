@@ -33,7 +33,7 @@
 
 ## 测试
 
-项目使用 PHPUnit 运行单元测试，并通过独立脚本检查全库 PHP 语法。必跑测试不连接数据库，也不会调用第三方 DNS API。
+项目使用 PHPUnit 分层检查核心逻辑、应用结构和数据库集成，并通过独立脚本检查全库 PHP 语法。测试覆盖全部 DNS、CA 与证书部署适配器的注册及接口契约，以及全部路由对应的控制器入口。外部云厂商 API 不使用真实账号调用。
 
 ```bash
 composer install
@@ -45,6 +45,13 @@ composer test
 ```bash
 composer test:syntax
 composer test:unit
+composer test:architecture
+```
+
+MySQL 集成测试会真实装载 `app/sql/install.sql`。默认本地运行会跳过这组测试；配置测试数据库并设置 `DNSMGR_TEST_DATABASE=1` 后可单独运行：
+
+```bash
+composer test:integration
 ```
 
 ## 部署方式

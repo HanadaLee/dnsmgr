@@ -88,10 +88,12 @@
         "test": "@test:ci",
         "test:ci": [
             "@test:syntax",
-            "@test:unit"
+            "@php vendor/bin/phpunit --configuration phpunit.xml"
         ],
+        "test:architecture": "@php vendor/bin/phpunit --configuration phpunit.xml --testsuite architecture",
+        "test:integration": "@php vendor/bin/phpunit --configuration phpunit.xml --testsuite integration",
         "test:syntax": "@php tools/php-syntax-check.php",
-        "test:unit": "@php vendor/bin/phpunit --configuration phpunit.xml"
+        "test:unit": "@php vendor/bin/phpunit --configuration phpunit.xml --testsuite unit"
     },
     "minimum-stability": "stable",
     "prefer-stable": true
