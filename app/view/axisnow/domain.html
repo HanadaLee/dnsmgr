@@ -39,6 +39,10 @@
             <div class="col-sm-6 form-group"><label>规则名称</label><input class="form-control" name="name" maxlength="100" placeholder="可选"></div>
             <div class="col-sm-6 form-group"><label>生效状态</label><select class="form-control" name="status"><option value="active">启用</option><option value="paused">暂停</option></select></div>
           </div>
+          <div class="form-group">
+            <label class="checkbox-inline"><input type="checkbox" name="auto_pause_on_empty" value="1"> 无可用资源时自动暂停</label>
+            <p class="help-block">当前地址池无可用资源时暂停本规则；同时启用故障备份调度时，仍会按探测阈值切换到备份池。</p>
+          </div>
           <div class="form-group"><label>说明</label><input class="form-control" name="description" maxlength="255" placeholder="可选"></div>
           <hr>
           <div class="form-group">
@@ -175,7 +179,7 @@ $(function(){
       {field:'resolved_addresses',title:'解析地址 / 最后更新时间',formatter:resolvedFormatter},
       {field:'probe_statuses',title:'探测状态',formatter:probeFormatter},
       {field:'automation',title:'自动调度',formatter:automationFormatter},
-      {field:'status',title:'生效状态',formatter:function(v){return v==='active'?'<span class="label label-success">启用</span>':'<span class="label label-default">暂停</span>'; }},
+      {field:'status',title:'生效状态',formatter:function(v,row){var html=v==='active'?'<span class="label label-success">启用</span>':'<span class="label label-default">暂停</span>';return row.auto_pause_on_empty?html+' <span class="label label-info">空池自动暂停</span>':html;}},
       {field:'action',title:'操作',formatter:function(v,row){var next=row.status==='active'?'paused':'active',text=next==='active'?'启用':'暂停';return '<button class="btn btn-info btn-xs" onclick="editRule(\''+row.uuid+'\')"><i class="fa fa-pencil"></i> 编辑</button> <button class="btn btn-primary btn-xs" onclick="openAutomation(\''+row.uuid+'\')"><i class="fa fa-clock-o"></i> 自动调度</button> <button class="btn btn-default btn-xs" onclick="changeRuleStatus(\''+row.uuid+'\',\''+next+'\')">'+text+'</button> <button class="btn btn-danger btn-xs" onclick="deleteRule(\''+row.uuid+'\')"><i class="fa fa-trash"></i> 删除</button>';}}
     ],onPostBody:function(){initPoolPopovers();},onPageChange:function(n,s){setStoredPageSize('axisnow_rules_pagesize',s);}
   });
@@ -216,7 +220,7 @@ function renderGeoIspOptions(selectedValue){
 function renderStrategy(){var strategy=$('[name=election_strategy]').val();$('#intervalGroup').toggle(strategy==='quality_optimized');if(strategy==='priority_order'&&$('[name=pool_type]').val()==='all_valid_eips'){$('[name=pool_type]').val('eip');renderPoolInput([]);}}
 function editRule(uuid){
   var ii=layer.load(2);$.getJSON('/axisnow/rules/get/'+accountId+'/'+encodeURIComponent(uuid),function(res){layer.close(ii);if(res.code!==0){layer.alert(res.msg,{icon:2});return;}var r=res.data,c=(r.action||{}).conf||{},pool=c.address_pool||{},groups=pool.groups||[],group=groups[0]||{},type=pool.mode==='all_valid_eips'?'all_valid_eips':(group.type||'eip');
-    var values=group.eip_uuids||group.tag_uuids||[];document.getElementById('ruleForm').reset();$('[name=uuid]').val(r.uuid);renderGeoIspOptions(r.geo_isp||'default');$('[name=name]').val(r.name||'');$('[name=description]').val(r.description||'');$('[name=status]').val(r.status||'active');$('[name=pool_type]').val(type);renderPoolInput(values);$('#poolText').val((group.ips||group.domains||[]).join('\n'));
+    var values=group.eip_uuids||group.tag_uuids||[];document.getElementById('ruleForm').reset();$('[name=uuid]').val(r.uuid);renderGeoIspOptions(r.geo_isp||'default');$('[name=name]').val(r.name||'');$('[name=description]').val(r.description||'');$('[name=status]').val(r.status||'active');$('[name=auto_pause_on_empty]').prop('checked',!!r.auto_pause_on_empty);$('[name=pool_type]').val(type);renderPoolInput(values);$('#poolText').val((group.ips||group.domains||[]).join('\n'));
     var response=c.response_strategy||{};$('[name=election_strategy]').val(response.election_strategy||'random');$('[name=quantity]').val(response.ip_quantity||response.addr_quantity||1);$('[name=trigger_interval]').val(response.trigger_interval||5);$('[name=ttl]').val((c.ttl_conf||{}).ttl||0);renderProbeTemplates((c.edge_probe_template_uuid||[])[0]||'');renderStrategy();
     if(groups.length>1){$('#advancedPool').val(JSON.stringify(pool,null,2));}else{$('#advancedPool').val('');}
     $('#ruleModalTitle').text('编辑路由规则');$('#ruleModal').modal('show');

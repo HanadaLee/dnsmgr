@@ -12,6 +12,32 @@ class AxisNowService
     private string $token;
     private bool $proxy;
 
+    /**
+     * Keep only fields accepted by the AxisNow routing-rule mutation API.
+     *
+     * Reusing this projection for status and automatic pool updates prevents
+     * newly introduced rule settings from being dropped by a read-modify-write
+     * operation.
+     */
+    public static function ruleMutationPayload(array $rule): array
+    {
+        $payload = [];
+        foreach ([
+            'domain',
+            'type',
+            'geo_isp',
+            'name',
+            'description',
+            'dns_domain_uuid',
+            'action',
+            'status',
+            'auto_pause_on_empty',
+        ] as $key) {
+            if (array_key_exists($key, $rule)) $payload[$key] = $rule[$key];
+        }
+        return $payload;
+    }
+
     public function __construct(array $config)
     {
         $this->token = trim((string)($config['token'] ?? ''));

@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use app\service\AxisNowAutomationService;
+use app\service\AxisNowService;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use ReflectionMethod;
 
 final class AxisNowAutomationServiceTest extends TestCase
 {
@@ -134,5 +136,48 @@ final class AxisNowAutomationServiceTest extends TestCase
         $this->expectExceptionMessage('地址池序列化失败');
 
         AxisNowAutomationService::encodePool(['weight' => NAN]);
+    }
+
+    public function testFailoverPoolSwitchPreservesAutoPauseSettingForPausedRule(): void
+    {
+        $ruleUuid = 'ad6b9339-58c2-40c5-a8e5-65af8708175c';
+        $primaryPool = ['mode' => 'customize', 'groups' => [['type' => 'ip', 'ips' => ['192.0.2.10']]]];
+        $backupPool = ['mode' => 'customize', 'groups' => [['type' => 'ip', 'ips' => ['192.0.2.20']]]];
+        $service = new class($ruleUuid, $primaryPool) extends AxisNowService {
+            public array $updatedPayload = [];
+
+            public function __construct(private string $ruleUuid, private array $primaryPool)
+            {
+            }
+
+            public function getRule(string $uuid): array
+            {
+                return [
+                    'uuid' => $this->ruleUuid,
+                    'type' => 'A',
+                    'dns_domain_uuid' => '1311af83-8647-4541-9521-e2387a411a2f',
+                    'status' => 'paused',
+                    'auto_pause_on_empty' => true,
+                    'action' => ['method' => 'ip_election', 'conf' => ['address_pool' => $this->primaryPool]],
+                ];
+            }
+
+            public function updateRule(string $uuid, array $data): array
+            {
+                $this->updatedPayload = $data;
+                return [];
+            }
+        };
+
+        (new ReflectionMethod(AxisNowAutomationService::class, 'applyPool'))->invoke(
+            new AxisNowAutomationService(),
+            $service,
+            ['uuid' => $ruleUuid],
+            $backupPool
+        );
+
+        self::assertSame('paused', $service->updatedPayload['status']);
+        self::assertTrue($service->updatedPayload['auto_pause_on_empty']);
+        self::assertSame($backupPool, $service->updatedPayload['action']['conf']['address_pool']);
     }
 }

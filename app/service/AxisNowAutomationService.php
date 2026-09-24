@@ -400,10 +400,10 @@ class AxisNowAutomationService
         $ruleUuid = (string)($rule['uuid'] ?? '');
         if ($ruleUuid === '') throw new Exception('AxisNow 路由规则 UUID 缺失');
         $rule = $service->getRule($ruleUuid);
-        $payload = [];
-        foreach (['domain', 'type', 'geo_isp', 'name', 'description', 'dns_domain_uuid', 'action', 'status'] as $key) {
-            if (array_key_exists($key, $rule)) $payload[$key] = $rule[$key];
-        }
+        // Keep auto_pause_on_empty while switching pools. Failover processing
+        // intentionally does not depend on the rule status, so an empty
+        // primary pool can still reach the configured backup pool.
+        $payload = AxisNowService::ruleMutationPayload($rule);
         if (!isset($payload['action']['conf']) || !is_array($payload['action']['conf'])) {
             throw new Exception('AxisNow 路由规则配置无效');
         }

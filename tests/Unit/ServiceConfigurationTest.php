@@ -30,6 +30,27 @@ final class ServiceConfigurationTest extends TestCase
         self::assertSame([], $service->resolveSubscriptionProviders([]));
     }
 
+    public function testAxisNowRuleMutationPayloadPreservesAutomaticEmptyPoolPause(): void
+    {
+        $action = ['method' => 'ip_election', 'conf' => ['address_pool' => ['mode' => 'all_valid_eips']]];
+
+        self::assertSame([
+            'type' => 'A',
+            'dns_domain_uuid' => '1311af83-8647-4541-9521-e2387a411a2f',
+            'action' => $action,
+            'status' => 'paused',
+            'auto_pause_on_empty' => true,
+        ], AxisNowService::ruleMutationPayload([
+            'uuid' => 'ad6b9339-58c2-40c5-a8e5-65af8708175c',
+            'type' => 'A',
+            'dns_domain_uuid' => '1311af83-8647-4541-9521-e2387a411a2f',
+            'action' => $action,
+            'status' => 'paused',
+            'auto_pause_on_empty' => true,
+            'created_at' => '2026-09-24T00:00:00Z',
+        ]));
+    }
+
     public function testCloudflareAuthenticationModeAndAccountConfiguration(): void
     {
         $token = new CloudflareEnhanceService(['apikey' => " token-with-space\n", 'account_id' => ' account ']);

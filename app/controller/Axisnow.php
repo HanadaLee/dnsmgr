@@ -857,6 +857,7 @@ class Axisnow extends BaseController
             'dns_domain_uuid' => $this->uuid((string)$domain['uuid']),
             'action' => ['method' => $type === 'CNAME' ? 'addr_election' : 'ip_election', 'conf' => $conf],
             'status' => input('post.status', 'active', 'trim') === 'paused' ? 'paused' : 'active',
+            'auto_pause_on_empty' => input('post.auto_pause_on_empty/d', 0) === 1,
         ];
         $name = $this->request->post('name', null, 'trim');
         $description = trim((string)input('post.description', '', 'trim'));
@@ -867,11 +868,7 @@ class Axisnow extends BaseController
 
     private function cleanRulePayload(array $rule): array
     {
-        $payload = [];
-        foreach (['domain', 'type', 'geo_isp', 'name', 'description', 'dns_domain_uuid', 'action', 'status'] as $key) {
-            if (array_key_exists($key, $rule)) $payload[$key] = $rule[$key];
-        }
-        return $payload;
+        return AxisNowService::ruleMutationPayload($rule);
     }
 
     private function poolSummary(array $row): string
