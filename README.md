@@ -110,11 +110,24 @@ location / {
 
 ### Docker 部署
 
-首先需要安装Docker，然后执行以下命令拉取镜像并启动（启动后监听8081端口）：
+程序代码和依赖保存在镜像内，不需要挂载整个 `/app/www`。只持久化数据库连接配置、证书任务日志，以及使用“复制到本机”时的证书输出目录。用户、域名、订单、证书正文和私钥等业务数据仍保存在 MySQL 中。
+
+首次部署先从仓库的 `.example.env` 准备数据库配置，将其中的数据库地址、名称、用户名、密码、端口和表前缀占位符替换为实际值，再启动容器（启动后监听8081端口）。已有部署直接使用原配置文件，不必重新生成：
 
 ```
-docker run --name dnsmgr -dit -p 8081:80 -v /var/dnsmgr:/app/www hanadalee/dnsmgr
+mkdir -p /var/dnsmgr/etc /var/dnsmgr/logs /var/dnsmgr/cert
+cp -n .example.env /var/dnsmgr/etc/thinkphp.env
+vim /var/dnsmgr/etc/thinkphp.env
+chmod 600 /var/dnsmgr/etc/thinkphp.env
+
+docker run --name dnsmgr -dit -p 8081:80 \
+  --mount type=bind,src=/var/dnsmgr/etc/thinkphp.env,dst=/app/www/.env \
+  --mount type=bind,src=/var/dnsmgr/logs,dst=/app/www/runtime/log \
+  --mount type=bind,src=/var/dnsmgr/cert,dst=/etc/cert \
+  hanadalee/dnsmgr
 ```
+
+配置文件必须包含有效数据库信息，不能使用空文件。数据库连接正常后，访问原生安装页面创建数据表和管理员账户；无需修改应用的安装逻辑。使用已有配置时，直接挂载原文件；其权限允许 `www` 用户读取时，可以使用只读挂载。`/etc/cert` 仅在部署任务将证书保存到该目录时需要挂载；其他本机输出路径需要单独挂载。
 
 访问并安装好后如果容灾切换未自动启动，重启容器即可：
 
@@ -139,7 +152,13 @@ services:
     ports:
       - 8081:80
     volumes:
-      - ./web:/app/www
+      - type: bind
+        source: ./etc/thinkphp.env
+        target: /app/www/.env
+        bind:
+          create_host_path: false
+      - ./logs:/app/www/runtime/log
+      - ./cert:/etc/cert
     image: hanadalee/dnsmgr
     depends_on:
       - dnsmgr-mysql
@@ -170,7 +189,10 @@ networks:
 在运行之前请创建好目录
 
 ```
-mkdir -p ./web
+mkdir -p ./etc ./logs ./cert
+cp -n .example.env ./etc/thinkphp.env
+vim ./etc/thinkphp.env
+chmod 600 ./etc/thinkphp.env
 mkdir -p ./mysql/conf
 mkdir -p ./mysql/logs
 mkdir -p ./mysql/data
@@ -188,7 +210,18 @@ mysql -uroot -p123456
 create database dnsmgr;
 ```
 
-在install界面链接IP填写dnsmgr-mysql
+在 `thinkphp.env` 中填写实际数据库信息，数据库地址为 `dnsmgr-mysql`，数据库名为上面创建的 `dnsmgr`。数据库可连接后，访问安装页面初始化数据表和管理员账户。
+
+#### 从整站挂载迁移
+
+先使用支持上述布局的新镜像，再移除旧的 `./web:/app/www` 或 `./data:/app/www` 挂载。配置文件和日志应单独保留：
+
+- `.env`：原先位于旧目录根部；如果已单独挂载 `thinkphp.env`，继续使用原文件即可。
+- 日志：可以直接将旧目录的 `runtime/log` 挂载到 `/app/www/runtime/log`，不必搬动历史日志。
+- 本机证书：保留现有证书输出目录的挂载；如果任务原先输出到 `/app/www` 内，需单独挂载该输出目录。
+- 自定义样式：如使用 `public/static/css/custom.css`，单独挂载该文件即可，不要挂载整个静态资源目录。
+
+不要删除旧目录，确认迁移和备份完成后再自行清理。缓存、编译模板和临时文件无需持久化；新启动逻辑不会复制旧代码，也不会清空任务日志。
 
 ## 演示截图
 

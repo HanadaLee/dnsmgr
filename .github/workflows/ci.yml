@@ -75,6 +75,9 @@ jobs:
       - name: Run tests
         run: composer test:ci
 
+      - name: Test Docker storage mounts
+        run: sh .github/docker/tests/mounts.sh
+
   prepare:
     name: Read version and determine release
     runs-on: ubuntu-24.04

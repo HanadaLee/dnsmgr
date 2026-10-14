@@ -103,7 +103,8 @@ RUN set -eux; \
     unzip /usr/src/www.zip -d /usr/src/; \
     source_dir="$(find /usr/src -mindepth 1 -maxdepth 1 -type d -name 'dnsmgr-*' -print -quit)"; \
     test -n "$source_dir"; \
-    mv "$source_dir" /usr/src/www; \
+    cp -a "$source_dir"/. /app/www/; \
+    rm -rf "$source_dir"; \
     rm -f /usr/src/www.zip
 
 RUN echo "$CACHE_BUST" >/dev/null \
@@ -111,10 +112,11 @@ RUN echo "$CACHE_BUST" >/dev/null \
     && chmod +x /usr/local/bin/composer
 
 RUN echo "$CACHE_BUST" >/dev/null \
-    && composer install -d /usr/src/www --no-interaction --no-dev --optimize-autoloader --no-cache
+    && composer install -d /app/www --no-interaction --no-dev --optimize-autoloader --no-cache
 
 RUN adduser -D -s /sbin/nologin -g www www \
-    && chown -R www:www /usr/src/www /var/lib/nginx /var/log/nginx \
+    && mkdir -p /app/www/runtime/log /etc/cert \
+    && chown -R www:www /app/www/runtime /etc/cert /var/lib/nginx /var/log/nginx \
     && echo "* * * * * cd /app/www && /usr/bin/php83 think certtask" | crontab -u www -
 
 COPY config/run_tasks.sh /app/run_tasks.sh
