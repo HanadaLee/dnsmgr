@@ -21,7 +21,9 @@ fi
 
 # Only adjust writable configurations.
 # A read-only production configuration must already be readable by www.
-if [ -w /app/www/.env ]; then
+# BusyBox test -w checks permission bits, not read-only mount restrictions.
+# An append-mode open without writing checks actual access and keeps contents intact.
+if ( : >> /app/www/.env ) 2>/dev/null; then
     chown www:www /app/www/.env
 fi
 

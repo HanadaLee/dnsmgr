@@ -28,17 +28,25 @@ cp "$test_dir/writable.env" "$test_dir/writable.expected"
 # An existing writable configuration stays intact; PHP cannot modify application code.
 docker run --rm \
     --mount "type=bind,src=$test_dir/writable.env,dst=/app/www/.env" \
+    --mount "type=bind,src=$test_dir/writable.expected,dst=/expected.env,readonly" \
     --mount "type=bind,src=$test_dir/data/runtime/log,dst=/app/www/runtime/log" \
     --mount "type=bind,src=$test_dir/cert,dst=/etc/cert" \
     "$image" sh -ec '
+        # The entrypoint transfers a mode-600 file to www, so the host runner
+        # may no longer read it. Verify its contents and permissions here.
+        cmp /app/www/.env /expected.env
+        test "$(stat -c %a /app/www/.env)" = 600
+        test "$(stat -c %u:%g /app/www/.env)" = "$(id -u www):$(id -g www)"
         su -s /bin/sh -c "test -r /app/www/.env" www
         su -s /bin/sh -c "printf new-log > /app/www/runtime/log/new.log; printf certificate > /etc/cert/fullchain.pem" www
-        ! su -s /bin/sh -c "test -w /app/www/public/index.php" www
+        if su -s /bin/sh -c "test -w /app/www/public/index.php" www; then
+            echo "PHP must not be able to modify application code." >&2
+            exit 1
+        fi
         test "$(cat /app/www/public/index.php)" = "image application"
         test "$(cat /app/www/runtime/log/history.log)" = "historical task log"
         test ! -e /app/firstrun
     '
-cmp "$test_dir/writable.env" "$test_dir/writable.expected"
 printf 'APP_DEBUG = false\n' > "$test_dir/production.env"
 chmod 644 "$test_dir/production.env"
 cp "$test_dir/production.env" "$test_dir/production.expected"
@@ -55,7 +63,10 @@ for attempt in 1 2; do
             test "$(cat /app/www/runtime/log/history.log)" = "historical task log"
             test "$(cat /app/www/runtime/log/new.log)" = new-log
             test "$(cat /etc/cert/fullchain.pem)" = certificate
-            test ! -w /app/www/.env
+            if ( : >> /app/www/.env ) 2>/dev/null; then
+                echo "The production configuration must be read-only." >&2
+                exit 1
+            fi
             su -s /bin/sh -c "test -r /app/www/.env && test -w /app/www/runtime/log" www
             grep -q "listen 19101 default_server;" /etc/nginx/nginx.conf
         '
@@ -97,7 +108,7 @@ if docker run --rm --entrypoint sh "$image" -ec '
 fi
 grep -q 'Mount a non-empty database configuration file' "$test_dir/error.log"
 
-chmod 600 "$test_dir/production.env"
+chmod 000 "$test_dir/production.env"
 if docker run --rm \
     --mount "type=bind,src=$test_dir/production.env,dst=/app/www/.env,readonly" \
     "$image" > "$test_dir/error.log" 2>&1; then
