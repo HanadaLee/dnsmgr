@@ -67,6 +67,7 @@ jobs:
           context: .github/docker
           file: .github/docker/Dockerfile
           platforms: ${{ matrix.platform }}
+          pull: true
           push: ${{ inputs.publish_arch_images }}
           provenance: false
           sbom: false

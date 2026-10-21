@@ -4,18 +4,20 @@ FROM alpine:${ALPINE_VERSION}
 WORKDIR /app/www
 
 ARG SWOOLE_VERSION=6.2.2
+ARG CACHE_BUST=local
 RUN set -eux; \
+    echo "$CACHE_BUST" >/dev/null; \
     apk add --no-cache \
       bash \
       curl \
       nginx \
       ca-certificates \
-      php83 \
+      'php83>=8.3.36-r0' \
       php83-ctype \
       php83-curl \
       php83-dom \
       php83-fileinfo \
-      php83-fpm \
+      'php83-fpm>=8.3.36-r0' \
       php83-ftp \
       php83-gd \
       php83-gettext \
@@ -84,7 +86,6 @@ COPY config/fpm-pool.conf ${PHP_INI_DIR}/php-fpm.d/www.conf
 COPY config/php.ini ${PHP_INI_DIR}/conf.d/custom.ini
 COPY config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-ARG CACHE_BUST=local
 ARG DNSMGR_VERSION=dev
 ARG DNSMGR_REPOSITORY=HanadaLee/dnsmgr
 ARG DNSMGR_REF=ext
@@ -123,6 +124,12 @@ COPY config/run_tasks.sh /app/run_tasks.sh
 RUN chmod +x /app/run_tasks.sh
 
 COPY entrypoint.sh /entrypoint.sh
+COPY tests/runtime.php /tmp/dnsmgr-runtime-check.php
+RUN php /tmp/dnsmgr-runtime-check.php \
+    && php-fpm83 --version \
+    && php-fpm83 --test \
+    && composer check-platform-reqs --no-dev \
+    && rm /tmp/dnsmgr-runtime-check.php
 ENTRYPOINT ["sh", "/entrypoint.sh"]
 
 EXPOSE 80
