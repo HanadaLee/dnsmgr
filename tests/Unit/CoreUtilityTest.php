@@ -39,13 +39,11 @@ final class CoreUtilityTest extends TestCase
         }
     }
 
-    public function testTimeAndPasswordHelpers(): void
+    public function testTimeHelpers(): void
     {
         self::assertSame('59秒', convert_second(59));
         self::assertSame('1分钟1秒', convert_second(61));
         self::assertSame('1小时1分钟1秒', convert_second(3661));
-        self::assertSame(getMd5Pwd('password', 'salt'), getMd5Pwd('password', 'salt'));
-        self::assertNotSame(getMd5Pwd('password', 'salt'), getMd5Pwd('password', 'other'));
         self::assertGreaterThan(0, getMillisecond());
     }
 

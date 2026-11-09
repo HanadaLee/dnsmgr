@@ -410,6 +410,14 @@ class Domain extends BaseController
         return json(['code' => 0, 'data' => ['total' => $result['total'], 'list' => $result['list']]]);
     }
 
+    private function recordTypeSupported($drow, $type)
+    {
+        $type = strtoupper(trim((string)$type));
+        if ($type !== 'ALIAS') return true;
+        $dnstype = Db::name('account')->where('id', $drow['aid'])->value('type');
+        return DnsHelper::supportsRecordType($dnstype, $type);
+    }
+
     //获取解析线路和最小TTL
     private function get_line_and_ttl($drow)
     {
@@ -451,6 +459,7 @@ class Domain extends BaseController
 
         $dnsconfig = DnsHelper::$dns_config[$dnstype];
         $dnsconfig['type'] = $dnstype;
+        $dnsconfig['alias'] = DnsHelper::supportsRecordType($dnstype, 'ALIAS');
 
         $drow['config'] = $dnsconfig;
         $drow['recordLine'] = $recordLineArr;
@@ -488,6 +497,7 @@ class Domain extends BaseController
 
         $dnsconfig = DnsHelper::$dns_config[$dnstype];
         $dnsconfig['type'] = $dnstype;
+        $dnsconfig['alias'] = DnsHelper::supportsRecordType($dnstype, 'ALIAS');
 
         View::assign('domainId', $id);
         View::assign('domainName', $drow['name']);
@@ -604,6 +614,9 @@ class Domain extends BaseController
         if (empty($name) || empty($type) || empty($value)) {
             return json(['code' => -1, 'msg' => '参数不能为空']);
         }
+        if (!$this->recordTypeSupported($drow, $type)) {
+            return json(['code' => -1, 'msg' => '当前DNS提供商不支持ALIAS记录']);
+        }
 
         $dns = DnsHelper::getModel($drow['aid'], $drow['name'], $drow['thirdid']);
         $recordid = $dns->addDomainRecord($name, $type, $value, $line, $ttl, $mx, $weight, $remark);
@@ -638,6 +651,9 @@ class Domain extends BaseController
 
         if (empty($recordid) || empty($name) || empty($type) || empty($value)) {
             return json(['code' => -1, 'msg' => '参数不能为空']);
+        }
+        if (!$this->recordTypeSupported($drow, $type)) {
+            return json(['code' => -1, 'msg' => '当前DNS提供商不支持ALIAS记录']);
         }
 
         $dns = DnsHelper::getModel($drow['aid'], $drow['name'], $drow['thirdid']);
@@ -918,6 +934,9 @@ class Domain extends BaseController
             if (empty($record) || empty($recordlist)) {
                 return json(['code' => -1, 'msg' => '参数不能为空']);
             }
+            if (!$this->recordTypeSupported($drow, $type)) {
+                return json(['code' => -1, 'msg' => '当前DNS提供商不支持ALIAS记录']);
+            }
             if (is_null($line)) {
                 $line = DnsHelper::$line_name[$dnstype]['DEF'] ?? 'default';
                 if ($dnstype == 'cloudflare' && input('post.proxy/d', 0) == 1) {
@@ -960,6 +979,7 @@ class Domain extends BaseController
 
         $dnsconfig = DnsHelper::$dns_config[$dnstype];
         $dnsconfig['type'] = $dnstype;
+        $dnsconfig['alias'] = DnsHelper::supportsRecordType($dnstype, 'ALIAS');
 
         View::assign('domainId', $id);
         View::assign('domainName', $drow['name']);
@@ -971,6 +991,7 @@ class Domain extends BaseController
 
     public function record_batch_add2()
     {
+        View::assign('aliasTypes', DnsHelper::getTypesSupporting('ALIAS'));
         return view('batchadd2');
     }
 
@@ -995,6 +1016,7 @@ class Domain extends BaseController
 
         $dnsconfig = DnsHelper::$dns_config[$dnstype];
         $dnsconfig['type'] = $dnstype;
+        $dnsconfig['alias'] = DnsHelper::supportsRecordType($dnstype, 'ALIAS');
 
         View::assign('domainId', $id);
         View::assign('domainName', $drow['name']);
@@ -1024,6 +1046,9 @@ class Domain extends BaseController
 
             if (empty($name) || empty($type) || empty($value)) {
                 return json(['code' => -1, 'msg' => '必填参数不能为空']);
+            }
+            if (!$this->recordTypeSupported($drow, $type)) {
+                return json(['code' => -1, 'msg' => '当前DNS提供商不支持ALIAS记录']);
             }
             $line = DnsHelper::$line_name[$dnstype]['DEF'] ?? 'default';
 
@@ -1080,6 +1105,7 @@ class Domain extends BaseController
             }
         }
 
+        View::assign('aliasTypes', DnsHelper::getTypesSupporting('ALIAS'));
         return view('batchedit');
     }
 
@@ -1157,7 +1183,8 @@ class Domain extends BaseController
             $domainList[] = [
                 'id' => $row['id'],
                 'name' => $row['name'],
-                'dnsType' => $dnsTypeName
+                'dnsType' => $dnsTypeName,
+                'supportsAlias' => DnsHelper::supportsRecordType($row['type'], 'ALIAS')
             ];
         }
 
@@ -1194,7 +1221,8 @@ class Domain extends BaseController
                     'recordLine' => $recordLineArr,
                     'minTTL' => $minTTL ? $minTTL : 1,
                     'weight' => $dnsconfig['weight'] ?? false,
-                    'remark' => $dnsconfig['remark'] ?? 0
+                    'remark' => $dnsconfig['remark'] ?? 0,
+                    'alias' => DnsHelper::supportsRecordType($dnstype, 'ALIAS')
                 ]
             ]);
         } catch (Exception $e) {
@@ -1308,6 +1336,7 @@ class Domain extends BaseController
 
         $dnsconfig = DnsHelper::$dns_config[$dnstype];
         $dnsconfig['type'] = $dnstype;
+        $dnsconfig['alias'] = DnsHelper::supportsRecordType($dnstype, 'ALIAS');
 
         View::assign('domainId', $id);
         View::assign('domainName', $drow['name']);

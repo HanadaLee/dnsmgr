@@ -3,7 +3,7 @@ FROM alpine:${ALPINE_VERSION}
 
 WORKDIR /app/www
 
-ARG SWOOLE_VERSION=6.2.2
+ARG SWOOLE_VERSION=6.2.3
 ARG CACHE_BUST=local
 RUN set -eux; \
     echo "$CACHE_BUST" >/dev/null; \

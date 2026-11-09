@@ -33,33 +33,60 @@ class kangleadmin implements DeployInterface
 
     public function deploy($fullchain, $privatekey, $config, &$info)
     {
-        if (empty($config['name'])) throw new Exception('网站用户名不能为空');
         $this->login();
         $this->log('登录成功 cookie:' . $this->cookie);
-        $this->loginVhost($config['name']);
 
-        if ($config['type'] == '1' && !empty($config['domains'])) {
-            $domains = explode("\n", $config['domains']);
-            $success = 0;
-            $errmsg = null;
-            foreach ($domains as $domain) {
-                $domain = trim($domain);
-                if (empty($domain)) continue;
-                try {
-                    $this->deployDomain($domain, $fullchain, $privatekey);
-                    $this->log("域名 {$domain} 证书部署成功");
-                    $success++;
-                } catch (Exception $e) {
-                    $errmsg = $e->getMessage();
-                    $this->log("域名 {$domain} 证书部署失败：" . $errmsg);
+        // target==1 为面板对象；旧版网站任务（type=0/1）无 target 字段，默认走网站分支
+        if (($config['target'] ?? '') == '1') {
+            $this->deployPanel($fullchain, $privatekey);
+            $this->log("EasyPanel面板本身的证书部署成功");
+            return;
+        }
+
+        if (empty($config['name'])) throw new Exception('网站用户名不能为空');
+        $names = explode("\n", $config['name']);
+
+        // ponytail: 部分网站失败仅记录日志、任务仍算成功（与仓库其它部署器一致）；如需严格失败，可在 $success < 有效网站数 时抛出
+        $success = 0;
+        $errmsg = null;
+        foreach ($names as $name) {
+            $name = trim($name);
+            if (empty($name)) continue;
+            try {
+                $this->loginVhost($name);
+
+                if ($config['type'] == '1' && !empty($config['domains'])) {
+                    $domainList = explode("\n", $config['domains']);
+                    $dcount = 0;
+                    $derrmsg = null;
+                    foreach ($domainList as $domain) {
+                        $domain = trim($domain);
+                        if (empty($domain)) continue;
+                        try {
+                            $this->deployDomain($domain, $fullchain, $privatekey);
+                            $this->log("域名 {$domain} 证书部署成功");
+                            $dcount++;
+                        } catch (Exception $e) {
+                            $derrmsg = $e->getMessage();
+                            $this->log("域名 {$domain} 证书部署失败：" . $derrmsg);
+                        }
+                    }
+                    if ($dcount == 0) {
+                        throw new Exception($derrmsg ? $derrmsg : '要部署的域名不存在');
+                    }
+                } else {
+                    $this->deployAccount($fullchain, $privatekey);
+                    $this->log("网站 {$name} 账号级SSL证书部署成功");
                 }
+                $this->log("网站 {$name} 证书部署成功");
+                $success++;
+            } catch (Exception $e) {
+                $errmsg = $e->getMessage();
+                $this->log("网站 {$name} 证书部署失败：" . $errmsg);
             }
-            if ($success == 0) {
-                throw new Exception($errmsg ? $errmsg : '要部署的域名不存在');
-            }
-        } else {
-            $this->deployAccount($fullchain, $privatekey);
-            $this->log("账号级SSL证书部署成功");
+        }
+        if ($success == 0) {
+            throw new Exception($errmsg ? $errmsg : '要部署的网站不存在');
         }
     }
 
@@ -89,6 +116,25 @@ class kangleadmin implements DeployInterface
         $post = [
             'certificate' => $fullchain,
             'certificate_key' => $privatekey,
+        ];
+        $response = http_request($this->url . $path, http_build_query($post), null, $this->cookie, null, $this->proxy);
+        if (strpos($response['body'], '成功')) {
+            return true;
+        } elseif (preg_match('/alert\(\'(.*?)\'\)/i', $response['body'], $match)) {
+            throw new Exception(htmlspecialchars($match[1]));
+        } elseif (strlen($response['body']) > 3 && strlen($response['body']) < 50) {
+            throw new Exception(htmlspecialchars($response['body']));
+        } else {
+            throw new Exception('原因未知(httpCode=' . $response['code'] . ')');
+        }
+    }
+
+    private function deployPanel($fullchain, $privatekey)
+    {
+        $path = $this->path . '/index.php?c=security&a=ssl';
+        $post = [
+            'crt' => $fullchain,
+            'key' => $privatekey,
         ];
         $response = http_request($this->url . $path, http_build_query($post), null, $this->cookie, null, $this->proxy);
         if (strpos($response['body'], '成功')) {

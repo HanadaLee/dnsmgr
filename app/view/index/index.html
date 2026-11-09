@@ -157,7 +157,9 @@
                 <i class="fa fa-volume-up"></i>
                 <h3 class="box-title">版本信息</h3>
             </div>
-            <ul class="list-group text-dark" id="checkupdate"></ul>
+            <ul class="list-group text-dark">
+                <li class="list-group-item">当前版本：Build {:config('app.version')}</li>
+            </ul>
         </div>
 		<button class="btn btn-default btn-block" onclick="cleancache()"><i class="fa fa-trash"></i>清理缓存</button><br/>
     </div>
@@ -196,14 +198,6 @@ $(document).ready(function(){
 					$(this).css('opacity', '0.4');
 				}
 			});
-            $.ajax({
-				url: '{$checkupdate}',
-				type: 'get',
-				dataType: 'jsonp',
-				jsonpCallback: 'callback'
-			}).done(function(data){
-				$("#checkupdate").html(data.msg);
-			})
         }
     })
 })
